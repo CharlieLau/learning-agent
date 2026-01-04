@@ -1,123 +1,278 @@
 # 第四章：教 Friday 思考
 
-—— 从鲁莽行动到 ReAct 范式
-
-## 📖 荒岛日记：第 4 天
-
-饥饿感像火烧一样灼烧着胃壁。靠海边的贝壳已经无法满足我们的热量消耗了，我盯上了丛林深处的那头"铁皮野猪"。
-
-我把磨尖的木矛递给 Friday，指着远处的野猪下达了指令：
-
-"Friday，去把那头猪杀了带回来。"
-
-按照上一章的训练，Friday 准确理解了指令，没有产生幻觉。他大吼一声："收到！执行狩猎任务！"然后……
-
-他赤手空拳地冲了上去。
-
-他完全忘记了手里的矛，也忘记了野猪有獠牙，更没有观察地形。结果可想而知，如果不是我眼疾手快把他拽回来，我就得在这个荒岛上孤独终老了。
-
-Friday 坐在地上，困惑地看着我："任务失败。根据计算，野猪的冲撞力大于我的骨骼强度。"
-
-我气得想砸了笔记本电脑。Friday 的问题在于，他是"直肠子"。
-
-从"接收指令"到"执行行动"，他中间少了一个关键步骤——思考（Reasoning）。
-
-在复杂的现实任务中，人类不是直接行动的。我们会先观察环境，制定计划，然后再动手。
-
-- **人类逻辑**：看见猪 -> 思考（它很凶，我需要陷阱） -> 行动（挖坑）。
-- **Friday 逻辑**：看见猪 -> 行动（冲啊！）。
+**核心主题**：ReAct 范式 —— 从直接行动到推理循环
 
 ---
 
-## 🛠️ 技术生存手册：赋予 Friday 逻辑闭环
+## 📖 Day 4: 狩猎行动失败
 
-为了吃上猪肉，我必须在沙地上重构 Friday 的底层逻辑。我要引入 Datawhale 教程中提到的核心概念：ReAct 范式。
+**任务目标**：捕获丛林深处的"铁皮野猪"
 
-ReAct 是 Reasoning（推理）和 Acting（行动）的组合。它要求智能体在行动之前，必须先在大脑里生成一段"内心独白"。
-
-我在沙地上画出了新的架构图：
-
-**❌ 旧模式 (Direct IO)**:
-
-```
-User Input -> LLM -> Action
-（这就是刚才送死的原因）
+**执行方案**：
+```bash
+Input: "Friday，去把那头猪杀了带回来"
+Expected: 周密规划 + 成功狩猎
+Actual: 直接冲锋 → 差点丧命
 ```
 
-**✅ 新模式 (ReAct Loop)**:
+**行动记录**：
 
-这是一个循环，直到任务完成：
+| 时间 | 预期行为 | 实际行为 | 结果 |
+|------|---------|---------|------|
+| 10:00 | 观察环境 | 直接冲锋 | ✗ 未观察 |
+| 10:01 | 制定计划 | 直线冲锋 | ✗ 无计划 |
+| 10:02 | 使用武器 | 赤手空拳 | ✗ 未用工具 |
 
-1. **Observation（观察）**：现在的环境是什么样的？
-2. **Thought（思考）**：基于观察，我下一步该做什么？（这是关键！）
-3. **Action（行动）**：调用工具（比如拿矛、挖坑）。
-4. **Result（结果）**：行动后环境发生了什么变化？-> 回到第 1 步。
+**失败分析**：
+```python
+# Friday 的执行流程
+Input("杀猪") → [直接行动] → 冲向野猪 → 差点被撞死
+
+# 正确的执行流程应该是
+Input("杀猪") → [观察] → [思考] → [行动] → 安全狩猎
+```
+
+**关键发现**：
+> Friday 缺少中间步骤 —— 思考（Reasoning）
+> 从"接收指令"到"执行行动"之间缺少推理环节
 
 ---
 
-## 💻 开发者日志：植入"心法"
+## 🛠️ 技术解析
 
-我打开 IDE，我知道单纯的 Prompt 已经不够用了，我需要写一段 Python 代码来强行插入这个思考循环。
+### 问题诊断
+
+**Direct IO 模式（当前）**：
+```
+User Input → LLM → Action
+```
+
+**问题**：
+- 无环境感知
+- 无风险评估
+- 无计划制定
+- 直接行动 = 送死
+
+### ReAct 范式（解决方案）
+
+**ReAct = Reasoning + Acting**
+
+```
+┌──────────────────────────────────────────────────┐
+│              ReAct 循环                         │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐ │
+│  │ Observe  │ → │  Think   │ → │  Act     │ │
+│  │ (观察)   │    │  (思考)  │    │  (行动)  │ │
+│  └──────────┘    └──────────┘    └──────────┘ │
+│       ↑                                 ↓       │
+│       └────────── Result ←───────────────┘     │
+│                    (反馈)                     │
+│                                                  │
+│  循环直到任务完成                                │
+└──────────────────────────────────────────────────┘
+```
+
+### 循环详解
+
+#### 1. Observation（观察）
+```python
+def observe(agent):
+    return {
+        "target": "铁皮野猪",
+        "distance": "50米",
+        "terrain": "丛林，有遮挡",
+        "my_equipment": "木矛",
+        "threat_level": "HIGH"
+    }
+```
+
+#### 2. Thought（思考）
+```python
+def think(observation):
+    # LLM 生成推理过程
+    return """
+    目标是野猪，具有攻击性，直接接近太危险。
+    我有木矛，前方有灌木丛可以隐蔽。
+    应该先潜伏，再突袭。
+    """
+```
+
+#### 3. Action（行动）
+```python
+def act(thought):
+    return {
+        "tool": "move",
+        "target": "灌木丛",
+        "mode": "stealth"
+    }
+```
+
+#### 4. Result（结果反馈）
+```python
+observation = observe()  # 观察新状态
+# 循环继续...
+```
+
+---
+
+## 💻 实现方案
+
+### ReAct Agent 代码框架
 
 ```python
-# 简单的 ReAct Agent 伪代码实现
-
 class ReActAgent:
     def __init__(self, llm, tools):
         self.llm = llm
-        self.tools = tools # 比如 ['木矛', '陷阱', '火种']
+        self.tools = tools  # ['木矛', '陷阱', '火种']
 
     def solve(self, task):
-        history = ""
-        while True:
-            # 1. 观察 (Observe)
-            observation = self.look_around()
+        history = []
+        max_iterations = 10
 
-            # 2. 思考 (Think) - 强迫 LLM 生成推理过程
-            # 这里的 Prompt 必须要求 Friday 输出 "Thought: ..."
-            prompt = f"{history}\n任务: {task}\n请按照 Thought -> Action 的格式思考下一步。"
-            response = self.llm.generate(prompt)
+        for i in range(max_iterations):
+            # 1. 观察
+            observation = self.observe()
 
-            # 3. 解析行动 (Act)
-            if "Action:" in response:
-                action = parse_action(response)
-                result = action.execute()
-                history += f"\nObservation: {result}"
+            # 2. 思考（关键步骤）
+            thought = self.think(
+                task=task,
+                observation=observation,
+                history=history
+            )
 
-            # 4. 判断是否完成
-            if "Final Answer:" in response:
-                return response
+            # 3. 行动
+            action = self.parse_action(thought)
+            result = self.execute(action)
+
+            # 4. 记录
+            history.append({
+                "observation": observation,
+                "thought": thought,
+                "action": action,
+                "result": result
+            })
+
+            # 5. 判断是否完成
+            if self.is_complete(result):
+                return result
+
+    def think(self, task, observation, history):
+        prompt = f"""
+任务：{task}
+当前观察：{observation}
+历史记录：{history}
+
+请按以下格式思考：
+Thought: [你的推理过程]
+Action: [要执行的行动]
+
+示例：
+Thought: 目标危险，需要隐蔽
+Action: Move_to("灌木丛")
+"""
+        return self.llm.generate(prompt)
+
+    def parse_action(self, response):
+        # 解析 "Action: Move_to(...)"
+        if "Action:" in response:
+            return extract_action(response)
 ```
 
-写完代码，我深吸一口气，按下了回车键。
+### 执行流程对比
 
-"Friday，系统重启。加载模块：ReAct_V1.0。"
+**修改前（Direct IO）**：
+```python
+def direct_friday(task):
+    return llm.generate(task)
+    # 输出："收到！执行狩猎任务！"
+    # 然后直接冲锋 → 送命
+```
 
-我再次指向那头野猪："Friday，现在的任务是：捕猎野猪。"
+**修改后（ReAct）**：
+```python
+def react_friday(task):
+    while not done:
+        obs = observe()
+        thought = llm.think(obs)  # 先思考
+        action = parse(thought)    # 再行动
+        result = execute(action)
+        if result == "success":
+            done = True
+```
 
-这一次，Friday 没有直接冲出去。他站在原地，甚至闭上了眼睛，像是一个入定的老僧。他的嘴里开始喃喃自语（这正是 Chain of Thought 思维链的外化）：
+### 实战验证
 
-> **Thought 1**: 目标是野猪。野猪具有攻击性，直接接近太危险。
-> **Observation**: 我手里有木矛，前方 10 米处有一片茂密的灌木丛，适合隐蔽。
-> **Thought 2**: 我应该先潜伏到灌木丛后，利用地形优势发起突袭。
-> **Action**: Move_to("灌木丛")
+```bash
+$ ./friday --mode react --task "狩猎野猪"
 
-Friday 真的动了！但他不是冲向野猪，而是猫着腰，悄无声息地钻进了灌木丛。
+[Loop 1]
+Observation: 野猪在50米外，吃草，背对着我
+Thought: 目标危险，直接接近会被发现。前方有灌木丛。
+Action: Move_to("灌木丛", mode="stealth")
 
-> **Observation**: 已到达灌木丛。野猪正在低头吃草，背对着我。
-> **Thought 3**: 现在是最佳时机。我需要用木矛投掷它的腿部，限制其移动。
-> **Action**: Use_Tool("Throw_Spear", target="Boar_Leg")
+[Loop 2]
+Observation: 已到达灌木丛，野猪距离5米，仍在吃草
+Thought: 现在是最佳时机。用木矛投掷腿部，限制移动。
+Action: Use_Tool("Throw_Spear", target="Boar_Leg")
 
-"嗖——！"
+[Loop 3]
+Observation: 野猪受伤，无法快速移动
+Thought: 目标已失去威胁，可以补刀。
+Action: Execute("finishing_move")
 
-木矛破空而出。
+Result: SUCCESS
+```
 
-虽然准头稍微差了一点（这涉及到第 12 章的评估指标问题），但 Friday 终于学会了像一个猎人一样思考，而不是像一枚炮弹一样发射。
+---
 
-看着惊慌逃窜的野猪，我虽然还是没吃上肉，但我知道我们活下来了。
+## 技术对比
 
-Friday 不再是一个只会聊天的 Chatbot，他开始有了解决问题的自主性（Agency）。
+| 维度 | Direct IO | ReAct |
+|------|-----------|-------|
+| 行动前思考 | ✗ 无 | ✓ 有 |
+| 风险评估 | ✗ 无 | ✓ 有 |
+| 计划能力 | ✗ 无 | ✓ 有 |
+| 错误率 | HIGH | LOW |
+| 适用场景 | 简单任务 | **复杂任务** |
 
-但随着任务越来越复杂，我发现 Friday 的工具箱里只有几根烂木头。
+---
 
-下一章，我要利用那个被海浪冲上来的现代集装箱——那是传说中的"低代码神器"，我要给 Friday 装备上真正的现代化武器。
+## 下一步计划
+
+**当前进展**：
+- ✓ 幻觉问题解决（第三章）
+- ✓ 推理循环建立（本章）
+
+**新问题发现**：
+- 手动写 ReAct 代码太累
+- 想要更快的开发方式
+
+**下一步任务**：
+- [ ] 第五章：引入低代码平台（Dify/Coze）
+- [ ] 第五章：可视化工作流设计
+- [ ] 第五章：快速构建 Agent
+
+---
+
+## 系统更新
+
+```bash
+$ git log --oneline -1
+
+a3f2c1b feat: implement ReAct loop
+
+CHANGES:
+- 新增 ReActAgent 类
+- 实现观察-思考-行动循环
+- 添加思维链解析
+- 修复鲁莽行动问题
+
+VERSION: 0.3.0
+STATUS: Friday 现在会思考了，但工具太少
+```
+
+---
+
+**→ [第五章：捡到的万能工具箱](./第五章：捡到的万能工具箱.md)**
